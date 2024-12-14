@@ -1,30 +1,37 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "debian/bookworm64"
 
-  # Configuración de red
   config.vm.network "public_network"
 
-  # Carpeta sincronizada
   config.vm.synced_folder "../", "/var/www/html"
 
-  # Provisionamiento de Apache, configuración de autenticación y archivo de configuración de Apache
   config.vm.provision "shell", inline: <<-SHELL
     apt-get update
-    apt-get install -y apache2
+    apt-get install -y apache2 apache2-utils
     
-    # Copiar el archivo .htpasswd desde la carpeta miWebVagrant a /var/www/html
     cp /vagrant/.htpasswd /var/www/html/.htpasswd
     
-    # Crear el archivo .htaccess para aplicar la autenticación básica
     echo 'AuthType Basic\nAuthName "Restricted Area"\nAuthUserFile /var/www/html/.htpasswd\nRequire valid-user' > /var/www/html/.htaccess
 
-    # Copiar el archivo 000-default.conf con la configuración personalizada de Apache
     cp /vagrant/000-default.conf /etc/apache2/sites-available/000-default.conf
 
-    # Establecer permisos adecuados para los archivos
+    cp /vagrant/404.html /var/www/html/404.html
+    cp /vagrant/500.html /var/www/html/500.html
+    cp /vagrant/403.html /var/www/html/403.html
+
+    a2enmod status
+    
+    systemctl restart apache2
+
     chmod -R 755 /var/www/html
 
-    # Habilitar el módulo de autenticación y reiniciar Apache para aplicar los cambios
-    systemctl restart apache2
+    apt-get install -y apache2-utils
+
+    echo "Realizando pruebas de rendimiento con 100 usuarios y 1000 peticiones..."
+    ab -n 1000 -c 100 http://localhost/ > /var/www/html/ab_100_1000.txt
+
+    echo "Realizando pruebas de rendimiento con 1000 usuarios y 1000 peticiones..."
+    ab -n 1000 -c 1000 http://localhost/ > /var/www/html/ab_1000_1000.txt
+
   SHELL
 end
